@@ -1,0 +1,206 @@
+logs analysis review suggestions for later use :-
+
+ log.py 6
+
+1
+import psycopg2
+REQUIRED
+You forgot the shebang line!
+2
+​
+3
+​
+SUGGESTION
+You should put the following code within this if statement:
+
+if __name__ == '__main__':
+    # code goes here
+This code makes sure that this file was ran directly, not imported.
+
+Read this link to see why: https://stackoverflow.com/questions/419163/what-does-if-name-main-do
+4
+q1_result = {}
+5
+q1_result['question'] = "\t1.The three most popular articles of alltime :\n"
+6
+q2_result = {}
+7
+q2_result['question'] = "\t2.The most popular article authors of alltime:\n"
+8
+q3_result = {}
+9
+q3_result['question'] = """\t3.Number of days with more than 1percent of
+10
+                        requests that lead to an error:\n"""
+11
+​
+12
+q1 = "select title,t_views from newt limit 3;"
+13
+​
+14
+q2 = """select authors.name,sum(newt.t_views) as t_views from authors,newt
+15
+where newt.author=authors.id group by authors.name order by t_views desc;"""
+16
+​
+17
+q3 = "select* from error_view where \"Perror\">1.00;"
+18
+​
+19
+# fucntion to execute the querys
+20
+​
+21
+​
+22
+def get_query(query):
+23
+    dbase = psycopg2.connect(database='news')
+24
+    cursor = dbase.cursor()
+SUGGESTION
+What if something goes wrong with the database connection? The connect method will raise an Exception (http://initd.org/psycopg/docs/module.html#exceptions). I recommend you refactor your database connection code into the following:
+
+def connect(database_name):
+    """Connect to the PostgreSQL database.  Returns a database connection."""
+    try:
+        db = psycopg2.connect("dbname={}".format(database_name))
+        c = db.cursor()
+        return db, c
+    except psycopg2.Error as e:
+        print "Unable to connect to database"
+        # THEN perhaps exit the program
+        sys.exit(1) # The easier method
+        # OR perhaps throw an error
+        raise e
+        # If you choose to raise an exception,
+        # It will need to be caught by the whoever called this function
+Then you can use this like so:
+
+db, c = connect()
+25
+    cursor.execute(query)
+26
+    results = cursor.fetchall()
+27
+    dbase.close()
+28
+    return results
+29
+​
+30
+​
+31
+# funtion to display results for query 1 and 2
+32
+def display_results(q_result):
+33
+    print(q_result['question'])
+34
+    for i in q_result['result']:
+35
+        print(str(i[0]) + '=' + str(i[1]) + 'views')
+36
+​
+37
+​
+38
+# fetch the results
+39
+q1_result['result'] = get_query(q1)
+40
+q2_result['result'] = get_query(q2)
+SUGGESTION
+For the sake of clarity, I recommend placing each one of these queries into a function:
+
+def print_top_articles():
+    # put relevant code here
+def print_top_authors():
+    # put relevant code here
+def print_top_error_days():
+    # put relevant code here
+THEN call each function at the bottom of the file
+
+if __name__ == '__main__':
+    # call all three functions
+41
+​
+42
+# pass the results for q1 and q2 in display function to print them
+43
+display_results(q1_result)
+44
+display_results(q2_result)
+SUGGESTION
+If you do the above, you'll notice how each function is very similar. You can refactor your code into a function that does the following:
+
+def get_query_results(query)
+    # connect to database
+    # grab cursor
+    # execute
+    # commit
+    # close
+    # return results
+Then you call it like so:
+
+results = get_query_results(“Send in query”)
+# print the results based on which query you’re doing.
+in each of your functions.
+45
+​
+46
+​
+47
+def display_q3_results(q_result):
+48
+    print(q_result['question'])
+49
+    for i in q_result['result']:
+50
+        print(str(i[0]) + '=' + str(i[1]) + '%')
+51
+​
+52
+​
+53
+q3_result['result'] = get_query(q3)
+54
+# pass the result for q3 in display function to print them
+55
+display_q3_results(q3_result)
+56
+​
+SUGGESTION
+In my opinion, the following code structure would be ideal:
+
+def connect(db_name=“news”):
+    “””
+    Returns the db and cursor variables.
+    “””
+
+def fetch_query(query):
+    “””
+    Connect to the database, query, fetch results, close, return results.
+    “””
+
+def print_top_articles():
+    “””
+    Fetch top articles using helper function, print results, close connection.
+    “””
+
+def print_top_authors():
+    “””
+    Fetch top authors using helper function, print results, close connection.
+    “””
+
+def print_top_error_days():
+    “””
+    Fetch top error days using helper function, print results, close connection.
+    “””
+
+if __name__ == '__main__':
+    print_top_articles()
+    print_top_authors()
+    print_top_error_days()
